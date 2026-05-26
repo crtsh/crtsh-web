@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/crtsh/crtsh-web/certwatch"
 	"github.com/crtsh/crtsh-web/config"
 	"github.com/crtsh/crtsh-web/health"
 	"github.com/crtsh/crtsh-web/utils"
@@ -24,6 +25,9 @@ func readyz(ctx *fasthttp.RequestCtx) int {
 	go func() {
 		statusCode := fasthttp.StatusOK
 		if !health.IsReady(ctx) {
+			statusCode = fasthttp.StatusServiceUnavailable
+		} else if err := certwatch.Ping(ctxWithDeadline); err != nil {
+			ctx.SetUserValue("error", err)
 			statusCode = fasthttp.StatusServiceUnavailable
 		}
 

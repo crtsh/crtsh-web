@@ -16,6 +16,18 @@ import (
 )
 
 type config struct {
+	CertWatchDB struct {
+		Host     string `mapstructure:"host"`
+		Port     int    `mapstructure:"port"`
+		User     string `mapstructure:"user"`
+		Password string `mapstructure:"password"`
+	}
+	Pool struct {
+		MaxConns        int32         `mapstructure:"maxConns"`        // Maximum number of connections in the pool.
+		MinConns        int32         `mapstructure:"minConns"`        // Minimum number of idle connections to maintain.
+		MaxConnLifetime time.Duration `mapstructure:"maxConnLifetime"` // Maximum lifetime of any connection.
+		MaxConnIdleTime time.Duration `mapstructure:"maxConnIdleTime"` // Maximum idle time before a connection is closed.
+	}
 	Server struct {
 		WebserverPort       int           `mapstructure:"webserverPort"`
 		WebserverPath       string        `mapstructure:"webserverPath"`
@@ -31,7 +43,6 @@ type config struct {
 		RememberBusyTimeout time.Duration `mapstructure:"rememberBusyTimeout"`
 		MetricsTimeout      time.Duration `mapstructure:"metricsTimeout"`
 	}
-	// TODO: Add other configuration here.
 	Logging struct {
 		IsDevelopment      bool   `mapstructure:"isDevelopment"`
 		Level              string `mapstructure:"level"`
@@ -126,6 +137,14 @@ func initViper() error {
 	viper.SetTypeByDefaultValue(true)
 
 	// Set defaults for all values in-order to use env config for all options.
+	viper.SetDefault("certwatchdb.host", "/var/run/postgresql")
+	viper.SetDefault("certwatchdb.port", 5432)
+	viper.SetDefault("certwatchdb.user", "httpd")
+	viper.SetDefault("certwatchdb.password", "")
+	viper.SetDefault("pool.maxConns", 32)
+	viper.SetDefault("pool.minConns", 0)
+	viper.SetDefault("pool.maxConnLifetime", 30*time.Minute)
+	viper.SetDefault("pool.maxConnIdleTime", 5*time.Minute)
 	viper.SetDefault("server.webserverPort", 8080)
 	viper.SetDefault("server.monitoringPort", 8081)
 	viper.SetDefault("server.socketPermissions", 0o600)

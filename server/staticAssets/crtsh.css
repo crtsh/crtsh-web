@@ -1,0 +1,51 @@
+a {
+  color: #015258;
+  text-decoration: underline;
+  white-space: nowrap
+}
+body {
+  font: 12pt "DM Sans", sans-serif;
+  padding-top: 10px;
+  text-align: center
+}
+span.crtsh {
+  background-color: #015258;
+  color: #FFFFFF;
+  font: bold 30px "Urbanist", sans-serif;
+  padding: 2px 20px;
+  border-radius: 6px
+}
+span.title {
+  color: #333132;
+  font: bold 30px "Urbanist", sans-serif;
+  padding: 10px 12px
+}
+.header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 32px;
+  flex-wrap: wrap
+}
+.copyright {
+  font: 8pt "DM Sans", sans-serif;
+  color: #000000;
+  text-align: center
+}
+.copyright a {
+  color: #015258
+}
+.error-message {
+  font: 500 18px/28px "DM Sans", sans-serif;
+  color: #333132;
+  max-width: 720px;
+  margin: 0 auto
+}
+textarea {
+  border: 1px solid #015258;
+  border-radius: 6px;
+  font: 10pt "Roboto Mono", monospace;
+  padding: 12px;
+  box-sizing: border-box
+}

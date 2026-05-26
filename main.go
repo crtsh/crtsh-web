@@ -7,6 +7,9 @@ import (
 
 	_ "go.uber.org/automaxprocs"
 
+	"go.uber.org/zap"
+
+	"github.com/crtsh/crtsh-web/certwatch"
 	"github.com/crtsh/crtsh-web/logger"
 	"github.com/crtsh/crtsh-web/server"
 )
@@ -17,9 +20,12 @@ func main() {
 	defer stop()
 	defer logger.Logger.Info("Shutting down")
 
-	// TODO: Start components here.
-	//	linter.StartSomething(ctx)
-	//	defer linter.StopSomething(ctx)
+	// Initialize the PostgreSQL connection pool used by the web_apis
+	// gateway (Go port of mod_certwatch).
+	if err := certwatch.Init(); err != nil {
+		logger.Logger.Fatal("certwatch.Init failed", zap.Error(err))
+	}
+	defer certwatch.Close()
 
 	// Start the HTTP servers (Web and Monitoring).
 	server.Run()

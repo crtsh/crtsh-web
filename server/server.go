@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	"path"
 	"strings"
 	"time"
 
@@ -20,29 +21,26 @@ var webServer *fasthttp.Server
 var webRequestLatency prometheus.Summary
 
 func webHandler(fhctx *fasthttp.RequestCtx) {
-	if fhctx.IsGet() {
-		switch strings.ToLower(utils.B2S(fhctx.Path())[1:]) {
-		// TODO: Add GET endpoints here.
-		case request.ENDPOINTSTRING_FAVICON:
-			favicon(fhctx)
-		default:
-			fhctx.NotFound()
-			logger.SetDetails(fhctx, zap.InfoLevel, "Invalid endpoint", nil, nil)
-		}
-
-	} else if fhctx.IsPost() {
-		// TODO: Add POST endpoints here.
-		/*		if request.POST(fhctx, endpoint) == -1 {
-				// Request timed out.
-				fhctx.SetStatusCode(fasthttp.StatusServiceUnavailable)
-				fhctx.SetContentType("text/plain")
-				logger.SetDetails(fhctx, zap.InfoLevel, "Request timeout", nil, nil)
-				defer fhctx.TimeoutErrorWithResponse(&fhctx.Response) // The logger needs to run first.
-			}*/
-
+	status := 0
+	assetPath := strings.ToLower(utils.B2S(fhctx.Path())[1:])
+	extension := path.Ext(assetPath)
+	if extension != "" && extension != "json" {
+		serveStaticAsset(fhctx, assetPath, extension)
 	} else {
-		fhctx.SetStatusCode(fasthttp.StatusMethodNotAllowed)
-		logger.SetDetails(fhctx, zap.InfoLevel, "Method not allowed", nil, nil)
+		// All other requests are routed to the PL/pgSQL `web_apis` function.
+		status := request.WebAPIs(fhctx)
+		if status == -1 {
+			logger.SetDetails(fhctx, zap.WarnLevel, "web_apis timeout", nil, nil)
+		}
+	}
+
+	if status == -1 { // Request timed out.
+		fhctx.SetStatusCode(fasthttp.StatusServiceUnavailable)
+		fhctx.SetContentType("text/plain")
+		if !fhctx.IsHead() {
+			fhctx.SetBody(utils.S2B("ERROR"))
+		}
+		defer fhctx.TimeoutErrorWithResponse(&fhctx.Response) // The logger needs to run first.
 	}
 
 	logger.LogRequest(fhctx)
@@ -56,7 +54,7 @@ func monitoringHandler(fhctx *fasthttp.RequestCtx) {
 	status := 0
 	switch strings.ToLower(utils.B2S(fhctx.Path())[1:]) {
 	case request.ENDPOINTSTRING_FAVICON:
-		favicon(fhctx)
+		serveStaticAsset(fhctx, request.ENDPOINTSTRING_FAVICON, ".ico")
 	case request.ENDPOINTSTRING_LIVEZ:
 		status = livez(fhctx)
 	case request.ENDPOINTSTRING_READYZ:
