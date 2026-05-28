@@ -18,6 +18,8 @@ func serveStaticAsset(fhctx *fasthttp.RequestCtx, assetPath, extension string) {
 	switch extension {
 	case ".css":
 		contentType = "text/css; charset=utf-8"
+	case ".gif":
+		contentType = "image/gif"
 	case ".ico":
 		contentType = "image/x-icon"
 	case ".js":
