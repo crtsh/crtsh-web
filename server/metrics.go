@@ -28,7 +28,7 @@ func metrics(ctx *fasthttp.RequestCtx) int {
 }
 
 // Request latency metrics.
-var requestTypeLabel = [...]string{"monitoring", "linting"}
+var requestTypeLabel = [...]string{"monitoring", "web"}
 var requestLatency = [len(requestTypeLabel)]*prometheus.Summary{
 	&monitoringRequestLatency,
 	&webRequestLatency,
