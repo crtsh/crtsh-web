@@ -1,6 +1,6 @@
 module github.com/crtsh/crtsh-web
 
-go 1.25.6
+go 1.26.5
 
 require (
 	github.com/goccy/go-json v0.10.6

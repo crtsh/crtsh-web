@@ -34,7 +34,7 @@ TLS termination and set `X-Forwarded-For` / `X-Real-IP` headers.
 
 ### Prerequisites
 
-- Go 1.25.6+ (see `go.mod`)
+- Go 1.26.5+ (see `go.mod`)
 - [quicktemplate](https://github.com/valyala/quicktemplate) code generator (`qtc`)
 
 ### Build Steps
