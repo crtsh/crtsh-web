@@ -1,7 +1,7 @@
 package request
-package request
 
 import (
+	"context"
 	"testing"
 
 	"github.com/valyala/fasthttp"
@@ -254,7 +254,7 @@ func newGetRequest(uri string) *fasthttp.RequestCtx {
 
 func TestRouting_HomePage(t *testing.T) {
 	fhctx := newGetRequest("/")
-	result := handleWebAPIs(nil, fhctx)
+	result := handleWebAPIs(context.TODO(), fhctx)
 	if result.statusCode != fasthttp.StatusOK {
 		t.Fatalf("status: got %d", result.statusCode)
 	}
@@ -268,7 +268,7 @@ func TestRouting_HomePage(t *testing.T) {
 
 func TestRouting_AdvancedPage(t *testing.T) {
 	fhctx := newGetRequest("/?a=1")
-	result := handleWebAPIs(nil, fhctx)
+	result := handleWebAPIs(context.TODO(), fhctx)
 	if result.statusCode != fasthttp.StatusOK {
 		t.Fatalf("status: got %d", result.statusCode)
 	}
@@ -279,7 +279,7 @@ func TestRouting_AdvancedPage(t *testing.T) {
 
 func TestRouting_LegacyTestRedirect(t *testing.T) {
 	fhctx := newGetRequest("/test/?q=example.com")
-	result := handleWebAPIs(nil, fhctx)
+	result := handleWebAPIs(context.TODO(), fhctx)
 	if result.statusCode != fasthttp.StatusFound {
 		t.Fatalf("status: got %d, want 302", result.statusCode)
 	}
@@ -293,7 +293,7 @@ func TestRouting_LegacyTestRedirect(t *testing.T) {
 
 func TestRouting_StaticAsset404(t *testing.T) {
 	fhctx := newGetRequest("/robots.txt")
-	result := handleWebAPIs(nil, fhctx)
+	result := handleWebAPIs(context.TODO(), fhctx)
 	if !result.notFound {
 		t.Fatalf("expected notFound for static asset")
 	}
@@ -305,7 +305,7 @@ func TestRouting_JsonPathNotDeclined(t *testing.T) {
 	// This will try to hit the database (which is nil), so it will panic
 	// or return an error. We just need to verify it doesn't return notFound.
 	defer func() { recover() }() // Catch the nil pool panic.
-	result := handleWebAPIs(nil, fhctx)
+	result := handleWebAPIs(context.TODO(), fhctx)
 	if result != nil && result.notFound {
 		t.Fatal(".json path should not be treated as a static asset")
 	}
@@ -315,7 +315,7 @@ func TestRouting_MethodNotAllowed(t *testing.T) {
 	var fhctx fasthttp.RequestCtx
 	fhctx.Request.SetRequestURI("/?q=test")
 	fhctx.Request.Header.SetMethod("DELETE")
-	result := handleWebAPIs(nil, &fhctx)
+	result := handleWebAPIs(context.TODO(), &fhctx)
 	if result.statusCode != fasthttp.StatusMethodNotAllowed {
 		t.Fatalf("status: got %d, want 405", result.statusCode)
 	}
@@ -328,7 +328,7 @@ func TestRouting_PostMethodAccepted(t *testing.T) {
 	fhctx.Request.SetBody([]byte("q=test"))
 	// Will panic on nil pool; just verify it gets past routing.
 	defer func() { recover() }()
-	result := handleWebAPIs(nil, &fhctx)
+	result := handleWebAPIs(context.TODO(), &fhctx)
 	if result != nil && result.statusCode == fasthttp.StatusMethodNotAllowed {
 		t.Fatal("POST should be accepted")
 	}
