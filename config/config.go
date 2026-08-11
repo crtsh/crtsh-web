@@ -43,6 +43,7 @@ type config struct {
 		RememberBusyTimeout  time.Duration `mapstructure:"rememberBusyTimeout"`
 		MetricsTimeout       time.Duration `mapstructure:"metricsTimeout"`
 		EnableDebugEndpoints bool          `mapstructure:"enableDebugEndpoints"`
+		MaxRequestBodySize   int           `mapstructure:"maxRequestBodySize"`
 	}
 	Logging struct {
 		IsDevelopment      bool   `mapstructure:"isDevelopment"`
@@ -158,6 +159,7 @@ func initViper() error {
 	viper.SetDefault("server.rememberBusyTimeout", 5*time.Second)
 	viper.SetDefault("server.metricsTimeout", 8*time.Second)
 	viper.SetDefault("server.enableDebugEndpoints", false)
+	viper.SetDefault("server.maxRequestBodySize", 1024*1024)
 	viper.SetDefault("logging.isDevelopment", false)
 	viper.SetDefault("logging.level", "")
 	viper.SetDefault("logging.samplingInitial", math.MaxInt)    // When both of these are set to MaxInt, sampling is disabled.
