@@ -1,4 +1,4 @@
-# crtsh-web
+# crtsh-web [![CI](https://github.com/crtsh/crtsh-web/actions/workflows/ci.yml/badge.svg)](https://github.com/crtsh/crtsh-web/actions/workflows/ci.yml) [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/crtsh/crtsh-web/badge)](https://securityscorecards.dev/viewer/?uri=github.com/crtsh/crtsh-web) [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE) [![Go Version](https://img.shields.io/github/go-mod/go-version/crtsh/crtsh-web)](go.mod)
 
 New front end application for https://crt.sh/
 
