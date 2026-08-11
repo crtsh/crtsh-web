@@ -29,19 +29,20 @@ type config struct {
 		MaxConnIdleTime time.Duration `mapstructure:"maxConnIdleTime"` // Maximum idle time before a connection is closed.
 	}
 	Server struct {
-		WebserverPort       int           `mapstructure:"webserverPort"`
-		WebserverPath       string        `mapstructure:"webserverPath"`
-		MonitoringPort      int           `mapstructure:"monitoringPort"`
-		MonitoringPath      string        `mapstructure:"monitoringPath"`
-		SocketPermissions   os.FileMode   `mapstructure:"socketPermissions"`
-		ReadTimeout         time.Duration `mapstructure:"readTimeout"`
-		IdleTimeout         time.Duration `mapstructure:"idleTimeout"`
-		DisableKeepalive    bool          `mapstructure:"disableKeepalive"`
-		RequestTimeout      time.Duration `mapstructure:"requestTimeout"`
-		LivezTimeout        time.Duration `mapstructure:"livezTimeout"`
-		ReadyzTimeout       time.Duration `mapstructure:"readyzTimeout"`
-		RememberBusyTimeout time.Duration `mapstructure:"rememberBusyTimeout"`
-		MetricsTimeout      time.Duration `mapstructure:"metricsTimeout"`
+		WebserverPort        int           `mapstructure:"webserverPort"`
+		WebserverPath        string        `mapstructure:"webserverPath"`
+		MonitoringPort       int           `mapstructure:"monitoringPort"`
+		MonitoringPath       string        `mapstructure:"monitoringPath"`
+		SocketPermissions    os.FileMode   `mapstructure:"socketPermissions"`
+		ReadTimeout          time.Duration `mapstructure:"readTimeout"`
+		IdleTimeout          time.Duration `mapstructure:"idleTimeout"`
+		DisableKeepalive     bool          `mapstructure:"disableKeepalive"`
+		RequestTimeout       time.Duration `mapstructure:"requestTimeout"`
+		LivezTimeout         time.Duration `mapstructure:"livezTimeout"`
+		ReadyzTimeout        time.Duration `mapstructure:"readyzTimeout"`
+		RememberBusyTimeout  time.Duration `mapstructure:"rememberBusyTimeout"`
+		MetricsTimeout       time.Duration `mapstructure:"metricsTimeout"`
+		EnableDebugEndpoints bool          `mapstructure:"enableDebugEndpoints"`
 	}
 	Logging struct {
 		IsDevelopment      bool   `mapstructure:"isDevelopment"`
@@ -156,6 +157,7 @@ func initViper() error {
 	viper.SetDefault("server.readyzTimeout", 500*time.Millisecond)
 	viper.SetDefault("server.rememberBusyTimeout", 5*time.Second)
 	viper.SetDefault("server.metricsTimeout", 8*time.Second)
+	viper.SetDefault("server.enableDebugEndpoints", false)
 	viper.SetDefault("logging.isDevelopment", false)
 	viper.SetDefault("logging.level", "")
 	viper.SetDefault("logging.samplingInitial", math.MaxInt)    // When both of these are set to MaxInt, sampling is disabled.

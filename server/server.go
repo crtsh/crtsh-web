@@ -62,11 +62,21 @@ func monitoringHandler(fhctx *fasthttp.RequestCtx) {
 	case request.ENDPOINTSTRING_METRICS:
 		status = metrics(fhctx)
 	case request.ENDPOINTSTRING_BUILD:
-		buildInfo(fhctx)
+		if config.Config.Server.EnableDebugEndpoints {
+			buildInfo(fhctx)
+		} else {
+			fhctx.NotFound()
+		}
 	case request.ENDPOINTSTRING_CONFIG:
-		configInfo(fhctx)
+		if config.Config.Server.EnableDebugEndpoints {
+			configInfo(fhctx)
+		} else {
+			fhctx.NotFound()
+		}
 	default:
-		if !profilingHandler(fhctx) {
+		if config.Config.Server.EnableDebugEndpoints && profilingHandler(fhctx) {
+			// Handled by pprof.
+		} else {
 			fhctx.NotFound()
 		}
 	}
