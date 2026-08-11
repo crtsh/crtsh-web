@@ -30,3 +30,8 @@ go.work.sum
 # Editor/IDE
 # .idea/
 # .vscode/
+
+# Generated quicktemplate sources: never committed, so they can't become stale
+# in the repository. Regenerate with `make generate` (a full `make` build cleans
+# and regenerates them automatically).
+request/templates/*.qtpl.go
