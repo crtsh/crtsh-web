@@ -2,8 +2,12 @@ package request
 
 import (
 	"context"
+	"errors"
 	"testing"
 
+	"github.com/crtsh/crtsh-web/certwatch"
+
+	"github.com/jackc/pgx/v5"
 	"github.com/valyala/fasthttp"
 )
 
@@ -301,14 +305,13 @@ func TestRouting_StaticAsset404(t *testing.T) {
 
 func TestRouting_JsonPathNotDeclined(t *testing.T) {
 	// .json paths should NOT be treated as static assets.
-	fhctx := newGetRequest("/something.json?q=test")
-	// This will try to hit the database (which is nil), so it will panic
-	// or return an error. We just need to verify it doesn't return notFound.
-	defer func() { recover() }() // Catch the nil pool panic.
-	result := handleWebAPIs(context.TODO(), fhctx)
-	if result != nil && result.notFound {
-		t.Fatal(".json path should not be treated as a static asset")
-	}
+	withMockDB(t, &mockDB{response: []byte("ok")}, func() {
+		fhctx := newGetRequest("/something.json?q=test")
+		result := handleWebAPIs(context.Background(), fhctx)
+		if result.notFound {
+			t.Fatal(".json path should not be treated as a static asset")
+		}
+	})
 }
 
 func TestRouting_MethodNotAllowed(t *testing.T) {
@@ -322,16 +325,16 @@ func TestRouting_MethodNotAllowed(t *testing.T) {
 }
 
 func TestRouting_PostMethodAccepted(t *testing.T) {
-	var fhctx fasthttp.RequestCtx
-	fhctx.Request.SetRequestURI("/")
-	fhctx.Request.Header.SetMethod("POST")
-	fhctx.Request.SetBody([]byte("q=test"))
-	// Will panic on nil pool; just verify it gets past routing.
-	defer func() { recover() }()
-	result := handleWebAPIs(context.TODO(), &fhctx)
-	if result != nil && result.statusCode == fasthttp.StatusMethodNotAllowed {
-		t.Fatal("POST should be accepted")
-	}
+	withMockDB(t, &mockDB{response: []byte("ok")}, func() {
+		var fhctx fasthttp.RequestCtx
+		fhctx.Request.SetRequestURI("/")
+		fhctx.Request.Header.SetMethod("POST")
+		fhctx.Request.SetBody([]byte("q=test"))
+		result := handleWebAPIs(context.Background(), &fhctx)
+		if result.statusCode == fasthttp.StatusMethodNotAllowed {
+			t.Fatal("POST should be accepted")
+		}
+	})
 }
 
 // parseResponseHeaders is a helper that extracts the header-parsing logic
@@ -425,4 +428,157 @@ func eqFold(a, b string) bool {
 		}
 	}
 	return true
+}
+
+// --- Database interaction tests (mock pool) ---
+
+type mockRow struct {
+	data []byte
+	err  error
+}
+
+func (r *mockRow) Scan(dest ...any) error {
+	if r.err != nil {
+		return r.err
+	}
+	if len(dest) > 0 {
+		if p, ok := dest[0].(*[]byte); ok {
+			*p = r.data
+		}
+	}
+	return nil
+}
+
+type mockDB struct {
+	response []byte
+	err      error
+}
+
+func (m *mockDB) QueryRow(_ context.Context, _ string, _ ...any) pgx.Row {
+	return &mockRow{data: m.response, err: m.err}
+}
+
+func (m *mockDB) Ping(_ context.Context) error { return nil }
+func (m *mockDB) Close()                       {}
+
+func withMockDB(t *testing.T, db certwatch.DB, fn func()) {
+	t.Helper()
+	old := certwatch.Pool
+	certwatch.Pool = db
+	defer func() { certwatch.Pool = old }()
+	fn()
+}
+
+func TestDB_SuccessPlainHTML(t *testing.T) {
+	body := []byte("<html><body>result</body></html>")
+	withMockDB(t, &mockDB{response: body}, func() {
+		fhctx := newGetRequest("/?q=example.com")
+		result := handleWebAPIs(context.Background(), fhctx)
+		if result.statusCode != fasthttp.StatusOK {
+			t.Fatalf("status: got %d", result.statusCode)
+		}
+		if string(result.body) != string(body) {
+			t.Fatalf("body: got %q", result.body)
+		}
+		if result.contentType != "text/html; charset=UTF-8" {
+			t.Fatalf("content-type: got %q", result.contentType)
+		}
+		if result.msg != "web_apis" {
+			t.Fatalf("msg: got %q", result.msg)
+		}
+	})
+}
+
+func TestDB_SuccessWithCustomHeaders(t *testing.T) {
+	resp := []byte("[BEGIN_HEADERS]\nContent-Type: application/json\nX-Custom: hello\n[END_HEADERS]\n{\"id\":1}")
+	withMockDB(t, &mockDB{response: resp}, func() {
+		fhctx := newGetRequest("/?q=example.com")
+		result := handleWebAPIs(context.Background(), fhctx)
+		if result.statusCode != fasthttp.StatusOK {
+			t.Fatalf("status: got %d", result.statusCode)
+		}
+		if result.contentType != "application/json" {
+			t.Fatalf("content-type: got %q", result.contentType)
+		}
+		if len(result.headers) != 1 || result.headers[0][0] != "X-Custom" || result.headers[0][1] != "hello" {
+			t.Fatalf("headers: got %v", result.headers)
+		}
+		if string(result.body) != `{"id":1}` {
+			t.Fatalf("body: got %q", result.body)
+		}
+	})
+}
+
+func TestDB_EmptyResponse(t *testing.T) {
+	withMockDB(t, &mockDB{response: nil}, func() {
+		fhctx := newGetRequest("/?q=example.com")
+		result := handleWebAPIs(context.Background(), fhctx)
+		if !result.notFound {
+			t.Fatal("expected notFound for empty response")
+		}
+		if result.msg != "Empty web_apis response" {
+			t.Fatalf("msg: got %q", result.msg)
+		}
+	})
+}
+
+func TestDB_QueryError(t *testing.T) {
+	withMockDB(t, &mockDB{err: errors.New("connection refused")}, func() {
+		fhctx := newGetRequest("/?q=example.com")
+		result := handleWebAPIs(context.Background(), fhctx)
+		if result.statusCode != fasthttp.StatusServiceUnavailable {
+			t.Fatalf("status: got %d, want 503", result.statusCode)
+		}
+		if result.err == nil || result.err.Error() != "connection refused" {
+			t.Fatalf("err: got %v", result.err)
+		}
+		if result.msg != "web_apis query failed" {
+			t.Fatalf("msg: got %q", result.msg)
+		}
+		if len(result.body) == 0 {
+			t.Fatal("expected error page body")
+		}
+	})
+}
+
+func TestDB_PostBody(t *testing.T) {
+	body := []byte("<html>post result</html>")
+	withMockDB(t, &mockDB{response: body}, func() {
+		var fhctx fasthttp.RequestCtx
+		fhctx.Request.SetRequestURI("/")
+		fhctx.Request.Header.SetMethod("POST")
+		fhctx.Request.SetBody([]byte("q=test"))
+		result := handleWebAPIs(context.Background(), &fhctx)
+		if result.statusCode != fasthttp.StatusOK {
+			t.Fatalf("status: got %d", result.statusCode)
+		}
+		if string(result.body) != string(body) {
+			t.Fatalf("body: got %q", result.body)
+		}
+	})
+}
+
+func TestDB_AcceptJSON(t *testing.T) {
+	body := []byte(`{"ok":true}`)
+	withMockDB(t, &mockDB{response: body}, func() {
+		var fhctx fasthttp.RequestCtx
+		fhctx.Request.SetRequestURI("/?q=example.com")
+		fhctx.Request.Header.SetMethod("GET")
+		fhctx.Request.Header.Set("Accept", "application/json")
+		result := handleWebAPIs(context.Background(), &fhctx)
+		if result.statusCode != fasthttp.StatusOK {
+			t.Fatalf("status: got %d", result.statusCode)
+		}
+	})
+}
+
+func TestDB_TestPathPrefix(t *testing.T) {
+	body := []byte("<html>test result</html>")
+	withMockDB(t, &mockDB{response: body}, func() {
+		fhctx := newGetRequest("/_ROB_IS_TESTING_/?q=example.com")
+		result := handleWebAPIs(context.Background(), fhctx)
+		if result.statusCode != fasthttp.StatusOK {
+			t.Fatalf("status: got %d", result.statusCode)
+		}
+	})
 }

@@ -9,18 +9,21 @@ import (
 	"github.com/crtsh/crtsh-web/config"
 	"github.com/crtsh/crtsh-web/logger"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"go.uber.org/zap"
 )
 
+// DB is the interface satisfied by *pgxpool.Pool, allowing test substitution.
+type DB interface {
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+	Ping(ctx context.Context) error
+	Close()
+}
+
 // Pool is the application-wide PostgreSQL connection pool.
-//
-// mod_certwatch deliberately opened a new libpq connection per request and
-// relied on PgBouncer for pooling. pgxpool plays nicely with PgBouncer
-// (in session or transaction mode) while also avoiding the per-request
-// connection-setup cost when no external pooler is present.
-var Pool *pgxpool.Pool
+var Pool DB
 
 func Init() error {
 	connectString := "postgresql:///certwatch?host=" + url.QueryEscape(config.Config.CertWatchDB.Host) + "&application_name=crtsh-web@" + url.QueryEscape(config.VcsRevision) + "&user=" + url.QueryEscape(config.Config.CertWatchDB.User)
