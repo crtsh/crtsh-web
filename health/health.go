@@ -7,8 +7,6 @@ import (
 
 	"github.com/crtsh/crtsh-web/config"
 
-	"github.com/valyala/fasthttp"
-
 	"go.uber.org/zap"
 )
 
@@ -44,26 +42,24 @@ func CompleteRequest(ctxWithDeadline context.Context, doneChan chan int) int {
 	}
 }
 
-func IsAlive(ctx *fasthttp.RequestCtx) bool {
+func IsAlive() (bool, []zap.Field) {
 	timestampMutex.RLock()
 	nonErrorTimestamp := latestNonErrorTimestamp
 	errorTimestamp := latestErrorTimestamp
 	timestampMutex.RUnlock()
 
-	ctx.SetUserValue("zap_fields", []zap.Field{
+	return !nonErrorTimestamp.Before(errorTimestamp), []zap.Field{
 		zap.Time("latest_non_error", nonErrorTimestamp),
 		zap.Time("latest_error", errorTimestamp),
-	})
-	return !nonErrorTimestamp.Before(errorTimestamp)
+	}
 }
 
-func IsReady(ctx *fasthttp.RequestCtx) bool {
+func IsReady() (bool, []zap.Field) {
 	timestampMutex.RLock()
 	busyTimestamp := latestBusyTimestamp
 	timestampMutex.RUnlock()
 
-	ctx.SetUserValue("zap_fields", []zap.Field{
+	return busyTimestamp.Add(config.Config.Server.RememberBusyTimeout).Before(time.Now()), []zap.Field{
 		zap.Time("latest_busy", busyTimestamp),
-	})
-	return busyTimestamp.Add(config.Config.Server.RememberBusyTimeout).Before(time.Now())
+	}
 }

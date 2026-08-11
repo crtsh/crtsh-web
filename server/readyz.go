@@ -14,40 +14,42 @@ import (
 	"go.uber.org/zap"
 )
 
-func readyz(ctx *fasthttp.RequestCtx) int {
-	ctx.SetUserValue("level", zap.DebugLevel)
-	ctx.SetUserValue("msg", "Readiness check")
+func readyz(fhctx *fasthttp.RequestCtx) int {
+	fhctx.SetUserValue("level", zap.DebugLevel)
+	fhctx.SetUserValue("msg", "Readiness check")
 
-	ctxWithDeadline, cancel := context.WithDeadline(context.Background(), ctx.Time().Add(time.Duration(config.Config.Server.ReadyzTimeout)))
+	ctx, cancel := context.WithDeadline(context.Background(), fhctx.Time().Add(time.Duration(config.Config.Server.ReadyzTimeout)))
 	defer cancel()
 
-	doneChan := make(chan int, 1)
-	go func() {
-		statusCode := fasthttp.StatusOK
-		if !health.IsReady(ctx) {
-			statusCode = fasthttp.StatusServiceUnavailable
-		} else if err := certwatch.Ping(ctxWithDeadline); err != nil {
-			ctx.SetUserValue("error", err)
-			statusCode = fasthttp.StatusServiceUnavailable
+	ready, fields := health.IsReady()
+	var err error
+	if ready {
+		err = certwatch.Ping(ctx)
+		if err != nil {
+			ready = false
 		}
-
-		// Return a response.
-		ctx.SetContentType("text/plain")
-		ctx.SetStatusCode(statusCode)
-		if !ctx.IsHead() {
-			if statusCode == fasthttp.StatusOK {
-				ctx.SetBody(utils.S2B("OK"))
-			} else {
-				ctx.SetBody(utils.S2B("ERROR"))
-			}
-		}
-		doneChan <- 0
-	}()
-
-	select {
-	case status := <-doneChan:
-		return status
-	case <-ctxWithDeadline.Done():
-		return -1 // Request timed out.
 	}
+
+	if ctx.Err() != nil {
+		return -1
+	}
+
+	fhctx.SetUserValue("zap_fields", fields)
+	if err != nil {
+		fhctx.SetUserValue("error", err)
+	}
+	statusCode := fasthttp.StatusOK
+	if !ready {
+		statusCode = fasthttp.StatusServiceUnavailable
+	}
+	fhctx.SetContentType("text/plain")
+	fhctx.SetStatusCode(statusCode)
+	if !fhctx.IsHead() {
+		if statusCode == fasthttp.StatusOK {
+			fhctx.SetBody(utils.S2B("OK"))
+		} else {
+			fhctx.SetBody(utils.S2B("ERROR"))
+		}
+	}
+	return 0
 }

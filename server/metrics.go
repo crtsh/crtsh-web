@@ -1,9 +1,6 @@
 package server
 
 import (
-	"context"
-	"time"
-
 	"github.com/crtsh/crtsh-web/config"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -25,23 +22,9 @@ var prometheusHandler = fasthttpadaptor.NewFastHTTPHandler(promhttp.Handler())
 func metrics(ctx *fasthttp.RequestCtx) int {
 	ctx.SetUserValue("level", zap.DebugLevel)
 	ctx.SetUserValue("msg", "Metrics")
-
-	ctxWithDeadline, cancel := context.WithDeadline(context.Background(), ctx.Time().Add(time.Duration(config.Config.Server.MetricsTimeout)))
-	defer cancel()
-
-	doneChan := make(chan int, 1)
-	go func() {
-		getFastHTTPMetrics()
-		prometheusHandler(ctx)
-		doneChan <- 0
-	}()
-
-	select {
-	case status := <-doneChan:
-		return status
-	case <-ctxWithDeadline.Done():
-		return -1 // Request timed out.
-	}
+	getFastHTTPMetrics()
+	prometheusHandler(ctx)
+	return 0
 }
 
 // Request latency metrics.

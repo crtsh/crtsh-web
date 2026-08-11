@@ -1,10 +1,6 @@
 package server
 
 import (
-	"context"
-	"time"
-
-	"github.com/crtsh/crtsh-web/config"
 	"github.com/crtsh/crtsh-web/health"
 	"github.com/crtsh/crtsh-web/utils"
 
@@ -17,33 +13,21 @@ func livez(ctx *fasthttp.RequestCtx) int {
 	ctx.SetUserValue("level", zap.DebugLevel)
 	ctx.SetUserValue("msg", "Liveness check")
 
-	ctxWithDeadline, cancel := context.WithDeadline(context.Background(), ctx.Time().Add(time.Duration(config.Config.Server.LivezTimeout)))
-	defer cancel()
+	alive, fields := health.IsAlive()
 
-	doneChan := make(chan int, 1)
-	go func() {
-		statusCode := fasthttp.StatusOK
-		if !health.IsAlive(ctx) {
-			statusCode = fasthttp.StatusServiceUnavailable
-		}
-
-		// Return a response.
-		ctx.SetContentType("text/plain")
-		ctx.SetStatusCode(statusCode)
-		if !ctx.IsHead() {
-			if statusCode == fasthttp.StatusOK {
-				ctx.SetBody(utils.S2B("OK"))
-			} else {
-				ctx.SetBody(utils.S2B("ERROR"))
-			}
-		}
-		doneChan <- 0
-	}()
-
-	select {
-	case status := <-doneChan:
-		return status
-	case <-ctxWithDeadline.Done():
-		return -1 // Request timed out.
+	ctx.SetUserValue("zap_fields", fields)
+	statusCode := fasthttp.StatusOK
+	if !alive {
+		statusCode = fasthttp.StatusServiceUnavailable
 	}
+	ctx.SetContentType("text/plain")
+	ctx.SetStatusCode(statusCode)
+	if !ctx.IsHead() {
+		if statusCode == fasthttp.StatusOK {
+			ctx.SetBody(utils.S2B("OK"))
+		} else {
+			ctx.SetBody(utils.S2B("ERROR"))
+		}
+	}
+	return 0
 }

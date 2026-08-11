@@ -8,6 +8,7 @@ package request
 // that the PL/pgSQL functions use to customise the response headers.
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"net/url"
@@ -24,6 +25,7 @@ import (
 	"github.com/valyala/fasthttp"
 
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 const (
@@ -37,60 +39,108 @@ const (
 	headersEnd   = "[END_HEADERS]\n"
 )
 
+// webAPIResult holds the computed response, keeping response-writing
+// separate from the potentially long-running database call.
+type webAPIResult struct {
+	statusCode  int
+	contentType string
+	body        []byte
+	headers     [][2]string
+	notFound    bool
+	level       zapcore.Level
+	msg         string
+	err         error
+	fields      []zap.Field
+}
+
 // WebAPIs handles a crt.sh request by invoking the appropriate PL/pgSQL
 // `web_apis` function and writing its response back to the client. It
 // returns 0 normally, or -1 if the request timed out before the database
 // responded (in which case the caller should emit a 503).
 func WebAPIs(fhctx *fasthttp.RequestCtx) int {
-	ctxWithDeadline, cancel := context.WithDeadline(context.Background(), fhctx.Time().Add(config.Config.Server.RequestTimeout))
+	ctx, cancel := context.WithDeadline(context.Background(), fhctx.Time().Add(config.Config.Server.RequestTimeout))
 	defer cancel()
 
-	doneChan := make(chan int, 1)
-	go func() {
-		doneChan <- handleWebAPIs(ctxWithDeadline, fhctx)
-	}()
+	result := handleWebAPIs(ctx, fhctx)
 
-	return health.CompleteRequest(ctxWithDeadline, doneChan)
+	if ctx.Err() != nil {
+		deadline, _ := ctx.Deadline()
+		health.UpdateLatestTimestamps(nil, nil, &deadline)
+		return -1
+	}
+
+	applyWebAPIResult(fhctx, result)
+	return 0
 }
 
-func handleWebAPIs(ctx context.Context, fhctx *fasthttp.RequestCtx) int {
+func applyWebAPIResult(fhctx *fasthttp.RequestCtx, r *webAPIResult) {
+	if r.notFound {
+		fhctx.NotFound()
+	} else {
+		fhctx.SetStatusCode(r.statusCode)
+		if r.contentType != "" {
+			fhctx.SetContentType(r.contentType)
+		}
+		for _, h := range r.headers {
+			fhctx.Response.Header.Set(h[0], h[1])
+		}
+		if r.body != nil {
+			fhctx.SetBody(r.body)
+		}
+	}
+	logger.SetDetails(fhctx, r.level, r.msg, r.err, r.fields)
+}
+
+func handleWebAPIs(ctx context.Context, fhctx *fasthttp.RequestCtx) *webAPIResult {
 	path := utils.B2S(fhctx.Path())
 	rawQuery := utils.B2S(fhctx.URI().QueryString())
 
 	// Serve the home page directly when requesting "/" with no query.
 	if path == "/" && rawQuery == "" && fhctx.IsGet() {
-		fhctx.SetStatusCode(fasthttp.StatusOK)
-		fhctx.SetContentType("text/html; charset=UTF-8")
-		templates.WriteSimplePage(fhctx)
-		logger.SetDetails(fhctx, zap.InfoLevel, "Simple page", nil, nil)
-		return 0
+		var buf bytes.Buffer
+		templates.WriteSimplePage(&buf)
+		return &webAPIResult{
+			statusCode:  fasthttp.StatusOK,
+			contentType: "text/html; charset=UTF-8",
+			body:        buf.Bytes(),
+			level:       zap.InfoLevel,
+			msg:         "Simple page",
+		}
 	}
 
 	// Serve the advanced search page when requesting "/?a=1".
 	if path == "/" && rawQuery == "a=1" && fhctx.IsGet() {
-		fhctx.SetStatusCode(fasthttp.StatusOK)
-		fhctx.SetContentType("text/html; charset=UTF-8")
-		templates.WriteAdvancedPage(fhctx)
-		logger.SetDetails(fhctx, zap.InfoLevel, "Advanced page", nil, nil)
-		return 0
+		var buf bytes.Buffer
+		templates.WriteAdvancedPage(&buf)
+		return &webAPIResult{
+			statusCode:  fasthttp.StatusOK,
+			contentType: "text/html; charset=UTF-8",
+			body:        buf.Bytes(),
+			level:       zap.InfoLevel,
+			msg:         "Advanced page",
+		}
 	}
 
 	// `/test/...` is a legacy redirect to the canonical query-string form.
 	if strings.HasPrefix(path, "/test/") {
 		location := fmt.Sprintf("https://%s/?%s", utils.B2S(fhctx.Host()), rawQuery)
-		fhctx.Response.Header.Set("Location", location)
-		fhctx.SetStatusCode(fasthttp.StatusFound)
-		logger.SetDetails(fhctx, zap.InfoLevel, "Legacy /test/ redirect", nil, nil)
-		return 0
+		return &webAPIResult{
+			statusCode: fasthttp.StatusFound,
+			headers:    [][2]string{{"Location", location}},
+			level:      zap.InfoLevel,
+			msg:        "Legacy /test/ redirect",
+		}
 	}
 
 	// Decline anything that looks like a static asset (e.g. images,
 	// robots.txt). `.json` paths are valid API endpoints and are NOT
 	// declined here.
 	if dot := strings.LastIndexByte(path, '.'); dot >= 0 && !strings.EqualFold(path[dot:], ".json") {
-		fhctx.NotFound()
-		logger.SetDetails(fhctx, zap.InfoLevel, "Not a web_apis endpoint", nil, nil)
-		return 0
+		return &webAPIResult{
+			notFound: true,
+			level:    zap.InfoLevel,
+			msg:      "Not a web_apis endpoint",
+		}
 	}
 
 	// Gather the raw request parameter string.
@@ -101,9 +151,11 @@ func handleWebAPIs(ctx context.Context, fhctx *fasthttp.RequestCtx) int {
 	case fhctx.IsPost():
 		rawParams = utils.B2S(fhctx.PostBody())
 	default:
-		fhctx.SetStatusCode(fasthttp.StatusMethodNotAllowed)
-		logger.SetDetails(fhctx, zap.InfoLevel, "Method not allowed", nil, nil)
-		return 0
+		return &webAPIResult{
+			statusCode: fasthttp.StatusMethodNotAllowed,
+			level:      zap.InfoLevel,
+			msg:        "Method not allowed",
+		}
 	}
 
 	// If the client explicitly asked for JSON, prepend `output=json` so
@@ -180,29 +232,51 @@ func handleWebAPIs(ctx context.Context, fhctx *fasthttp.RequestCtx) int {
 		nonError := time.Time{}
 		errTime := time.Now()
 		health.UpdateLatestTimestamps(&nonError, &errTime, nil)
-		logger.SetDetails(fhctx, zap.ErrorLevel, "web_apis query failed", err, []zap.Field{
-			zap.Duration("query_duration", queryDuration),
-		})
-		writeErrorPage(fhctx, queryDuration, err)
-		return 0
+		seconds := int64(queryDuration.Round(time.Second).Seconds())
+		plural := "s"
+		if seconds == 1 {
+			plural = ""
+		}
+		var buf bytes.Buffer
+		templates.WriteErrorPage(&buf, seconds, plural, err.Error())
+		return &webAPIResult{
+			statusCode:  fasthttp.StatusServiceUnavailable,
+			contentType: "text/html; charset=UTF-8",
+			body:        buf.Bytes(),
+			level:       zap.ErrorLevel,
+			msg:         "web_apis query failed",
+			err:         err,
+			fields:      []zap.Field{zap.Duration("query_duration", queryDuration)},
+		}
 	}
 
 	nonErrorTime := time.Now()
 	health.UpdateLatestTimestamps(&nonErrorTime, nil, nil)
 
 	if len(response) == 0 {
-		fhctx.NotFound()
-		logger.SetDetails(fhctx, zap.InfoLevel, "Empty web_apis response", nil, []zap.Field{
+		return &webAPIResult{
+			notFound: true,
+			level:    zap.InfoLevel,
+			msg:      "Empty web_apis response",
+			fields:   []zap.Field{zap.Duration("query_duration", queryDuration)},
+		}
+	}
+
+	result := &webAPIResult{
+		statusCode:  fasthttp.StatusOK,
+		contentType: "text/html; charset=UTF-8",
+		level:       zap.InfoLevel,
+		msg:         "web_apis",
+		fields: []zap.Field{
 			zap.Duration("query_duration", queryDuration),
-		})
-		return 0
+			zap.String("web_apis_fn", fn),
+		},
 	}
 
 	body := response
-	customisedContentType := false
-	if bytes := utils.B2S(response); strings.HasPrefix(bytes, headersBegin) {
-		if end := strings.Index(bytes, headersEnd); end >= 0 {
-			headerBlock := bytes[len(headersBegin):end]
+	if respStr := utils.B2S(response); strings.HasPrefix(respStr, headersBegin) {
+		if end := strings.Index(respStr, headersEnd); end >= 0 {
+			headerBlock := respStr[len(headersBegin):end]
 			body = response[end+len(headersEnd):]
 			for _, line := range strings.Split(headerBlock, "\n") {
 				if line == "" {
@@ -215,25 +289,16 @@ func handleWebAPIs(ctx context.Context, fhctx *fasthttp.RequestCtx) int {
 				name := strings.TrimSpace(line[:colon])
 				value := strings.TrimSpace(line[colon+1:])
 				if strings.EqualFold(name, "Content-Type") {
-					fhctx.SetContentType(value)
-					customisedContentType = true
+					result.contentType = value
 				} else {
-					fhctx.Response.Header.Set(name, value)
+					result.headers = append(result.headers, [2]string{name, value})
 				}
 			}
 		}
 	}
 
-	if !customisedContentType {
-		fhctx.SetContentType("text/html; charset=UTF-8")
-	}
-	fhctx.SetStatusCode(fasthttp.StatusOK)
-	fhctx.SetBody(body)
-	logger.SetDetails(fhctx, zap.InfoLevel, "web_apis", nil, []zap.Field{
-		zap.Duration("query_duration", queryDuration),
-		zap.String("web_apis_fn", fn),
-	})
-	return 0
+	result.body = body
+	return result
 }
 
 // parseParams parses a URL-encoded `name=value&...` string in the same way
@@ -288,20 +353,4 @@ func sanitizeComment(s string) string {
 		}
 		return r
 	}, s)
-}
-
-// writeErrorPage renders the branded crt.sh error page on database failure,
-// matching the original mod_certwatch error response.
-func writeErrorPage(fhctx *fasthttp.RequestCtx, elapsed time.Duration, err error) {
-	fhctx.SetStatusCode(fasthttp.StatusServiceUnavailable)
-	fhctx.SetContentType("text/html; charset=UTF-8")
-	if fhctx.IsHead() {
-		return
-	}
-	seconds := int64(elapsed.Round(time.Second).Seconds())
-	plural := "s"
-	if seconds == 1 {
-		plural = ""
-	}
-	templates.WriteErrorPage(fhctx, seconds, plural, err.Error())
 }

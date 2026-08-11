@@ -28,7 +28,7 @@ func webHandler(fhctx *fasthttp.RequestCtx) {
 		serveStaticAsset(fhctx, assetPath, extension)
 	} else {
 		// All other requests are routed to the PL/pgSQL `web_apis` function.
-		status := request.WebAPIs(fhctx)
+		status = request.WebAPIs(fhctx)
 		if status == -1 {
 			logger.SetDetails(fhctx, zap.WarnLevel, "web_apis timeout", nil, nil)
 		}
