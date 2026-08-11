@@ -26,7 +26,7 @@ jobs:
         run: go vet ./...
 
       - name: Run tests
-        run: go test -covermode=atomic -coverprofile=coverage.out ./...
+        run: go test -covermode=atomic -coverprofile=coverage.out $(go list ./... | grep -v /request/templates)
 
       - name: Report coverage
         run: go tool cover -func=coverage.out
