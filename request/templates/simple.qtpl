@@ -1,0 +1,23 @@
+{% func SimplePage() %}
+{%= Header("crt.sh | Certificate Search") %}
+  <BR><BR><BR>
+  <DIV style="font:500 18px/28px 'DM Sans',sans-serif;color:#333132;max-width:576px;margin:0 auto">
+    Enter an <B>Identity</B> (Domain Name, Organization Name, etc),
+    <BR>a <B>Certificate Fingerprint</B> (SHA-1 or SHA-256), or a <B>crt.sh ID</B>:
+  </DIV>
+  <BR>
+  <FORM name="search_form" method="GET" onsubmit="return (this.q.value != '')">
+    <INPUT type="text" class="input" name="q" maxlength="255">
+    <BR><BR><BR>
+    <SPAN style="position:relative;display:inline-block">
+      <INPUT type="submit" class="button" value="Search">
+      <A style="position:absolute;left:100%;top:50%;transform:translateY(-50%);margin-left:24px;font:600 14px/20px 'DM Sans',sans-serif;color:#014149;text-decoration:none;white-space:nowrap" href="?a=1">Advanced...</A>
+    </SPAN>
+  </FORM>
+  <SCRIPT type="text/javascript">
+    document.search_form.q.focus();
+  </SCRIPT>
+  <BR><BR><BR>
+
+{%= Footer() %}
+{% endfunc %}

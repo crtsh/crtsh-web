@@ -57,6 +57,24 @@ func handleWebAPIs(ctx context.Context, fhctx *fasthttp.RequestCtx) int {
 	path := utils.B2S(fhctx.Path())
 	rawQuery := utils.B2S(fhctx.URI().QueryString())
 
+	// Serve the home page directly when requesting "/" with no query.
+	if path == "/" && rawQuery == "" && fhctx.IsGet() {
+		fhctx.SetStatusCode(fasthttp.StatusOK)
+		fhctx.SetContentType("text/html; charset=UTF-8")
+		templates.WriteSimplePage(fhctx)
+		logger.SetDetails(fhctx, zap.InfoLevel, "Simple page", nil, nil)
+		return 0
+	}
+
+	// Serve the advanced search page when requesting "/?a=1".
+	if path == "/" && rawQuery == "a=1" && fhctx.IsGet() {
+		fhctx.SetStatusCode(fasthttp.StatusOK)
+		fhctx.SetContentType("text/html; charset=UTF-8")
+		templates.WriteAdvancedPage(fhctx)
+		logger.SetDetails(fhctx, zap.InfoLevel, "Advanced page", nil, nil)
+		return 0
+	}
+
 	// `/test/...` is a legacy redirect to the canonical query-string form.
 	if strings.HasPrefix(path, "/test/") {
 		location := fmt.Sprintf("https://%s/?%s", utils.B2S(fhctx.Host()), rawQuery)
@@ -143,6 +161,7 @@ func handleWebAPIs(ctx context.Context, fhctx *fasthttp.RequestCtx) int {
 		utils.B2S(fhctx.Request.Header.Protocol()),
 	)
 	sql := fmt.Sprintf("SELECT %s($1,$2,$3) -- [%s] %s", fn, sanitizeComment(clientIP), sanitizeComment(requestLine))
+	fmt.Printf("%s\n", sql)
 
 	// pgx marshals []string as text[] automatically. Pass nil (rather
 	// than an empty slice) so the PL/pgSQL function sees NULL when no
@@ -285,5 +304,5 @@ func writeErrorPage(fhctx *fasthttp.RequestCtx, elapsed time.Duration, err error
 	if seconds == 1 {
 		plural = ""
 	}
-	templates.WriteErrorPage(fhctx, seconds, plural, err.Error(), time.Now().Year())
+	templates.WriteErrorPage(fhctx, seconds, plural, err.Error())
 }

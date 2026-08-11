@@ -1,18 +1,5 @@
-{% func ErrorPage(seconds int64, plural string, errorMessage string, year int) %}
-<!DOCTYPE html>
-<HTML>
-<HEAD>
-<META http-equiv="Content-Type" content="text/html; charset=UTF-8">
-<TITLE>crt.sh | ERROR!</TITLE>
-<LINK href="//fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;1,700&family=Urbanist:wght@700&family=Roboto+Mono&display=swap" rel="stylesheet">
-<LINK href="/crtsh.css" rel="stylesheet">
-</HEAD>
-<BODY>
-
-<DIV class="header">
-  <A style="text-decoration:none" href="/"><SPAN class="crtsh">crt.sh</SPAN></A>
-  <SPAN class="title">Certificate Search</SPAN>
-</DIV>
+{% func ErrorPage(seconds int64, plural string, errorMessage string) %}
+{%= Header("crt.sh | ERROR!") %}
 <BR><BR><BR>
 
 <DIV class="error-message">
@@ -30,12 +17,5 @@ Unfortunately, searches that would produce many results may never succeed. For o
 </DIV>
 <BR><BR>
 
-<P class="copyright">&copy; <A href="//sectigo.com/">Sectigo</A> Limited 2015-{%d year %}. All rights reserved.</P>
-<DIV style="display:flex;align-items:center;justify-content:center;gap:16px;flex-wrap:wrap">
-  <A href="https://sectigo.com/"><IMG src="/sectigo.svg" width="48" height="48"></A>
-  <A href="https://github.com/crtsh"><IMG src="/github.svg" width="40" height="40"></A>
-</DIV>
-
-</BODY>
-</HTML>
+{%= Footer() %}
 {% endfunc %}

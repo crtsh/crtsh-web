@@ -1,0 +1,214 @@
+{% func AdvancedPage() %}
+{%= Header("crt.sh | Certificate Search") %}
+  <BR>
+  <SCRIPT type="text/javascript">
+    function doSearch(
+      type,
+      value
+    )
+    {
+      if ((!type) || (!value))
+        return;
+      var t_url;
+      if (document.search_form.searchCensys.checked && (type != "CAID")) {
+        if ((type == "id") || (type == "ctid") || (type == "ski")
+             || (type == "spkisha1") || (type == "spkisha256")
+             || (type == "subjectsha1") || (type == "E")) {
+          alert("Sorry, Censys doesn't support this search type");
+          return;
+        }
+        t_url = "//search.censys.io/search?resource=certificates&q=";
+        var t_field = "";
+        if (value != "%") {
+          if (type == "c")
+            t_url += "fingerprint_sha1:" + encodeURIComponent("\"" + value.toLowerCase() + "\"")
+                     + " OR fingerprint_sha256:" + encodeURIComponent("\"" + value.toLowerCase() + "\"");
+          else if (type == "serial")
+            t_url += "parsed.serial_number_hex:" + encodeURIComponent("\"" + value.toLowerCase().replace(/:/g, "") + "\"");
+          else if (type == "sha1")
+            t_url += "fingerprint_sha1:" + encodeURIComponent("\"" + value.toLowerCase() + "\"");
+          else if (type == "sha256")
+            t_url += "fingerprint_sha256:" + encodeURIComponent("\"" + value.toLowerCase() + "\"");
+          else if ((type == "CA") || (type == "CAName"))
+            t_field = "parsed.issuer_dn";
+          else if (type == "Identity")
+            t_url += "names:" + encodeURIComponent("\"" + value + "\"");
+          else if (type == "CN")
+            t_field = "parsed.subject.common_name";
+          else if (type == "OU")
+            t_field = "parsed.subject.organizational_unit";
+          else if (type == "O")
+            t_field = "parsed.subject.organization";
+          else if (type == "dNSName")
+            t_field = "parsed.extensions.subject_alt_name.dns_names";
+          else if (type == "rfc822Name")
+            t_field = "parsed.extensions.subject_alt_name.email_addresses";
+          else if (type == "iPAddress")
+            t_field = "parsed.extensions.subject_alt_name.ip_addresses";
+        }
+        if (t_field != "")
+          t_url += t_field + ":" + encodeURIComponent("\"" + value + "\"");
+      }
+      else {
+        t_url = "?" + encodeURIComponent(type) + "=" + encodeURIComponent(value).replace(/%20/g, "+");
+        if (document.search_form.excludeExpired.checked)
+          t_url += "&exclude=expired";
+        with (document.search_form) {
+          if (match.options[match.selectedIndex].value != "")
+            t_url += "&match=" + match.options[match.selectedIndex].value;
+        }
+        if (document.search_form.deduplicate.checked)
+          t_url += "&deduplicate=Y";
+        if (document.search_form.showSQL.checked)
+          t_url += "&showSQL=Y";
+      }
+      window.location = t_url;
+    }
+  </SCRIPT>
+  <FORM name="search_form" method="GET" onsubmit="return false">
+    Enter search term:
+    <BR><BR>
+    <INPUT type="text" class="input" name="q" size="64" maxlength="255">
+    <BR><BR><BR>
+    <TABLE class="options" style="margin:auto">
+      <TR>
+        <TD style="border:none;text-align:center">
+          <SPAN class="heading">Select search type:</SPAN>
+          <BR><SELECT name="searchtype" size="19">
+            <OPTION value="c">CERTIFICATE</OPTION>
+            <OPTION value="id">&nbsp; crt.sh ID</OPTION>
+            <OPTION value="ctid">&nbsp; CT Entry ID</OPTION>
+            <OPTION value="serial">&nbsp; Serial Number</OPTION>
+            <OPTION value="ski">&nbsp; Subject Key Identifier</OPTION>
+            <OPTION value="spkisha1">&nbsp; SHA-1(SubjectPublicKeyInfo)</OPTION>
+            <OPTION value="spkisha256">&nbsp; SHA-256(SubjectPublicKeyInfo)</OPTION>
+            <OPTION value="subjectsha1">&nbsp; SHA-1(Subject)</OPTION>
+            <OPTION value="sha1">&nbsp; SHA-1(Certificate)</OPTION>
+            <OPTION value="sha256">&nbsp; SHA-256(Certificate)</OPTION>
+            <OPTION value="ca">CA</OPTION>
+            <OPTION value="CAID">&nbsp; ID</OPTION>
+            <OPTION value="CAName">&nbsp; Name</OPTION>
+            <OPTION value="Identity" selected>IDENTITY</OPTION>
+            <OPTION value="CN">&nbsp; commonName (Subject)</OPTION>
+            <OPTION value="E">&nbsp; emailAddress (Subject)</OPTION>
+            <OPTION value="OU">&nbsp; organizationalUnitName (Subject)</OPTION>
+            <OPTION value="O">&nbsp; organizationName (Subject)</OPTION>
+            <OPTION value="dNSName">&nbsp; dNSName (SAN)</OPTION>
+            <OPTION value="rfc822Name">&nbsp; rfc822Name (SAN)</OPTION>
+            <OPTION value="iPAddress">&nbsp; iPAddress (SAN)</OPTION>
+          </SELECT>
+        </TD>
+        <TD style="border:none;width:40px">&nbsp;</TD>
+        <TD style="border:none;text-align:center">
+          <SPAN class="heading">Select search options:</SPAN>
+          <BR><DIV style="border:1px solid #AAAAAA;margin-bottom:5px;padding:4px 2px;text-align:left">
+            &nbsp;<SELECT name="match">
+              <OPTION value="" selected>Autoselect</OPTION>
+              <OPTION value="=">=</OPTION>
+              <OPTION value="ILIKE">ILIKE</OPTION>
+              <OPTION value="LIKE">LIKE</OPTION>
+              <OPTION value="single">Single</OPTION>
+              <OPTION value="any">Any</OPTION>
+              <OPTION value="FTS">Full Text Search</OPTION>
+            </SELECT> Identity matching
+            <BR><INPUT type="checkbox" name="excludeExpired"> Exclude expired certificates?
+            <BR><INPUT type="checkbox" name="deduplicate"> Deduplicate (pre)certificate pairs?
+            <BR><INPUT type="checkbox" name="showSQL"> Show SQL?
+            <HR>
+            &nbsp;Or, <INPUT type="checkbox" name="searchCensys"> Search on <SPAN style="vertical-align:-30%"><IMG src="/censys.png"></SPAN>?
+          </DIV>
+          <BR>
+          <SPAN style="position:relative;display:inline-block">
+            <INPUT type="submit" class="button" value="Search"
+                   onClick="doSearch(document.search_form.searchtype.value,document.search_form.q.value)">
+            <A style="position:absolute;left:100%;top:50%;transform:translateY(-50%);margin-left:24px;font:600 14px/20px 'DM Sans',sans-serif;color:#014149;text-decoration:none;white-space:nowrap" href="?">Simple...</A>
+          </SPAN>
+          <BR><BR><BR><HR><BR>
+          <SPAN class="heading">Select linting options:</SPAN>
+          <BR><SELECT name="linter" size="3">
+            <OPTION value="cablint">cablint</OPTION>
+            <OPTION value="x509lint">x509lint</OPTION>
+            <OPTION value="zlint" selected>zlint</OPTION>
+            <OPTION value="keylint">keylint</OPTION>
+            <OPTION value="lint">ALL</OPTION>
+          </SELECT>
+          <SELECT name="linttype" size="3">
+            <OPTION value="1 week" selected>1-week Summary</OPTION>
+            <OPTION value="issues">Issues</OPTION>
+          </SELECT>
+          <BR><BR>
+          <INPUT type="submit" class="button" value="Lint"
+                 onClick="doSearch(document.search_form.linter.value,document.search_form.linttype.value)">
+        </TD>
+      </TR>
+      <TR>
+        <TD colspan="3" style="border:none">
+          <BR><BR><HR>
+        </TD>
+      </TR>
+      <TR>
+        <TD style="border:none">
+          <TABLE>
+            <TR>
+              <TD>crt.sh</TD>
+              <TD>
+                <A href="//groups.google.com/g/crtsh">Forum</A>
+                <BR><A href="/cert-populations">Certificate Populations</A>
+                <BR><A href="/revoked-intermediates">Revoked Intermediates</A>
+                <BR><A href="/ca-issuers">CA Issuers</A>
+                <BR><A href="/ocsp-responders">OCSP Responders</A>
+                <BR><A href="/test-websites">Test Websites</A>
+              </TD>
+            </TR>
+            <TR>
+              <TD>Linting</TD>
+              <TD>
+                <A href="//pkimet.al/linttbscert">TBSCertificate Linter</A>
+                <BR><A href="//pkimet.al/lintcert">Certificate Linter</A>
+              </TD>
+            </TR>
+          </TABLE>
+        </TD>
+        <TD style="border:none">&nbsp;</TD>
+        <TD style="border:none">
+          <TABLE>
+            <TR>
+              <TD>CT</TD>
+              <TD>
+                <A href="/monitored-logs">Monitored Logs</A>
+                <BR><A href="/accepted-roots-missing">Accepted Roots Missing</A>
+                <BR><A href="/gen-add-chain">Certificate Submission Assistant</A>
+              </TD>
+            </TR>
+            <TR>
+              <TD>Mozilla</TD>
+              <TD>
+                <A href="/mozilla-disclosures">CA Certificate Disclosures</A>
+                <BR><A href="/mozilla-certvalidations">Certificate Validations</A>
+                <BR><A href="/mozilla-onecrl">OneCRL</A>
+              </TD>
+            </TR>
+            <TR>
+              <TD>Apple</TD>
+              <TD>
+                <A href="/apple-disclosures">CA Certificate Disclosures</A>
+              </TD>
+            </TR>
+            <TR>
+              <TD>Chrome</TD>
+              <TD>
+                <A href="/chrome-disclosures">CA Certificate Disclosures</A>
+              </TD>
+            </TR>
+          </TABLE>
+        </TD>
+      </TR>
+    </TABLE>
+  </FORM>
+  <SCRIPT type="text/javascript">
+    document.search_form.q.focus();
+  </SCRIPT>
+  <BR><BR><BR>
+
+{%= Footer() %}
+{% endfunc %}

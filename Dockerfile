@@ -4,7 +4,8 @@ ENV CGO_ENABLED=0 \
 RUN apk add --no-cache git tini-static
 WORKDIR /build
 COPY . .
-RUN go build -o crtsh-web -ldflags "-X github.com/crtsh/crtsh-web/config.BuildTimestamp=`date --utc +%Y-%m-%dT%H:%M:%SZ`" /build/.
+RUN go run github.com/valyala/quicktemplate/qtc@latest -dir=request/templates \
+&& go build -o crtsh-web -ldflags "-X github.com/crtsh/crtsh-web/config.BuildTimestamp=`date --utc +%Y-%m-%dT%H:%M:%SZ`" /build/.
 
 FROM gcr.io/distroless/static:nonroot
 USER nonroot:nonroot
