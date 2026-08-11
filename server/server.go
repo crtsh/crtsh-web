@@ -24,7 +24,7 @@ func webHandler(fhctx *fasthttp.RequestCtx) {
 	status := 0
 	assetPath := strings.ToLower(utils.B2S(fhctx.Path())[1:])
 	extension := path.Ext(assetPath)
-	if extension != "" && extension != "json" {
+	if extension != "" && extension != ".json" {
 		serveStaticAsset(fhctx, assetPath, extension)
 	} else {
 		// All other requests are routed to the PL/pgSQL `web_apis` function.
