@@ -20,7 +20,7 @@ type config struct {
 		Host     string `mapstructure:"host"`
 		Port     int    `mapstructure:"port"`
 		User     string `mapstructure:"user"`
-		Password string `mapstructure:"password"`
+		Password string `mapstructure:"password" json:"-"`
 	}
 	Pool struct {
 		MaxConns        int32         `mapstructure:"maxConns"`        // Maximum number of connections in the pool.
