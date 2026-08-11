@@ -1,7 +1,6 @@
 package health
 
 import (
-	"context"
 	"sync"
 	"time"
 
@@ -29,17 +28,6 @@ func UpdateLatestTimestamps(nonErrorTimestamp *time.Time, errorTimestamp *time.T
 		latestBusyTimestamp = *busyTimestamp
 	}
 	timestampMutex.Unlock()
-}
-
-func CompleteRequest(ctxWithDeadline context.Context, doneChan chan int) int {
-	select {
-	case reqStatus := <-doneChan: // Request completed.
-		return reqStatus
-	case <-ctxWithDeadline.Done(): // Request timed out.
-		now := time.Now()
-		UpdateLatestTimestamps(nil, nil, &now) // Busy.
-		return -1
-	}
 }
 
 func IsAlive() (bool, []zap.Field) {

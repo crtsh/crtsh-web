@@ -1,7 +1,6 @@
 package health
 
 import (
-	"context"
 	"sync"
 	"testing"
 	"time"
@@ -121,35 +120,4 @@ func TestUpdateLatestTimestamps_Concurrent(t *testing.T) {
 	if !alive {
 		t.Fatal("expected alive after concurrent identical updates")
 	}
-}
-
-func TestCompleteRequest_DoneBeforeDeadline(t *testing.T) {
-	resetTimestamps()
-	doneChan := make(chan int, 1)
-	doneChan <- 42
-	// Use a context that won't expire.
-	ctx, cancel := newTestContext(time.Hour)
-	defer cancel()
-	status := CompleteRequest(ctx, doneChan)
-	if status != 42 {
-		t.Fatalf("got %d, want 42", status)
-	}
-}
-
-func TestCompleteRequest_DeadlineBeforeDone(t *testing.T) {
-	resetTimestamps()
-	doneChan := make(chan int, 1)
-	// Use a context that's already expired.
-	ctx, cancel := newTestContext(-time.Millisecond)
-	defer cancel()
-	// Yield to let the context expire.
-	time.Sleep(time.Millisecond)
-	status := CompleteRequest(ctx, doneChan)
-	if status != -1 {
-		t.Fatalf("got %d, want -1", status)
-	}
-}
-
-func newTestContext(d time.Duration) (context.Context, context.CancelFunc) {
-	return context.WithDeadline(context.Background(), time.Now().Add(d))
 }
