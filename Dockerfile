@@ -1,6 +1,5 @@
 FROM docker.io/library/golang:1.26.5-alpine AS builder
-ENV CGO_ENABLED=0 \
-    GOARCH=amd64
+ENV CGO_ENABLED=0
 RUN apk add --no-cache git tini-static
 WORKDIR /build
 COPY . .
