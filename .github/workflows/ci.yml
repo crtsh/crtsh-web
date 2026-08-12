@@ -48,6 +48,39 @@ jobs:
       - name: Run tests with race detector
         run: go test -race ./...
 
+  test-integration:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: testdb
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U test -d testdb"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - name: Generate templates
+        run: go run github.com/valyala/quicktemplate/qtc@latest -dir=request/templates
+
+      - name: Run integration tests
+        env:
+          CRTSHWEB_TEST_DSN: postgres://test:test@localhost:5432/testdb?sslmode=disable
+        run: go test -tags=integration -race -count=1 -timeout=60s ./request/
+
   govulncheck:
     runs-on: ubuntu-latest
     steps:
