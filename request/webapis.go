@@ -213,7 +213,7 @@ func handleWebAPIs(ctx context.Context, fhctx *fasthttp.RequestCtx) *webAPIResul
 		utils.B2S(fhctx.RequestURI()),
 		utils.B2S(fhctx.Request.Header.Protocol()),
 	)
-	sql := fmt.Sprintf("SELECT %s($1,$2,$3) -- [%s] %s", fn, sanitizeComment(clientIP), sanitizeComment(requestLine))
+	sql := fmt.Sprintf("SELECT %s($1,$2,$3) -- [%s] %s", fn, sanitizeComment(clientIP), sanitizeComment(requestLine)) // codeql[go/sql-injection] user data is in a line comment; sanitizeComment strips newlines
 
 	// pgx marshals []string as text[] automatically. Pass nil (rather
 	// than an empty slice) so the PL/pgSQL function sees NULL when no
