@@ -26,7 +26,7 @@ jobs:
         run: go vet ./...
 
       - name: Run tests
-        run: go test -covermode=atomic -coverprofile=coverage.out $(go list ./... | grep -v /request/templates)
+        run: go test -v -covermode=atomic -coverprofile=coverage.out $(go list ./... | grep -v /request/templates)
 
       - name: Report coverage
         run: go tool cover -func=coverage.out
@@ -46,7 +46,7 @@ jobs:
         run: go run github.com/valyala/quicktemplate/qtc@latest -dir=request/templates
 
       - name: Run tests with race detector
-        run: go test -race ./...
+        run: go test -race -v ./...
 
   test-integration:
     runs-on: ubuntu-latest
@@ -79,7 +79,7 @@ jobs:
       - name: Run integration tests
         env:
           CRTSHWEB_TEST_DSN: postgres://test:test@localhost:5432/testdb?sslmode=disable
-        run: go test -tags=integration -race -count=1 -timeout=60s ./request/
+        run: go test -tags=integration -race -v -count=1 -timeout=60s ./request/
 
   govulncheck:
     runs-on: ubuntu-latest
