@@ -124,7 +124,7 @@ func handleWebAPIs(ctx context.Context, fhctx *fasthttp.RequestCtx) *webAPIResul
 
 	// `/test/...` is a legacy redirect to the canonical query-string form.
 	if strings.HasPrefix(path, "/test/") {
-		location := fmt.Sprintf("https://%s/?%s", utils.B2S(fhctx.Host()), rawQuery)
+		location := "/?" + rawQuery
 		return &webAPIResult{
 			statusCode: fasthttp.StatusFound,
 			headers:    [][2]string{{"Location", location}},
