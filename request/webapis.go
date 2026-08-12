@@ -58,6 +58,7 @@ type webAPIResult struct {
 // returns 0 normally, or -1 if the request timed out before the database
 // responded (in which case the caller should emit a 503).
 func WebAPIs(fhctx *fasthttp.RequestCtx) int {
+	// Deadline (not client disconnect) is the cancellation mechanism.
 	ctx, cancel := context.WithDeadline(context.Background(), fhctx.Time().Add(config.Config.Server.RequestTimeout))
 	defer cancel()
 
