@@ -2,6 +2,7 @@ package certwatch
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/url"
 	"strings"
@@ -75,7 +76,7 @@ func Close() {
 
 func Ping(ctx context.Context) error {
 	if Pool == nil {
-		return nil
+		return errors.New("database pool not initialised")
 	}
 	return Pool.Ping(ctx)
 }

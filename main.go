@@ -20,16 +20,15 @@ func main() {
 	defer stop()
 	defer logger.Logger.Info("Shutting down")
 
-	// Initialize the PostgreSQL connection pool used by the web_apis
-	// gateway (Go port of mod_certwatch).
+	// Start the HTTP servers first so that health probes are available while the database pool initialises.
+	server.Run()
+	defer server.Shutdown()
+
+	// Initialize the PostgreSQL connection pool used by the web_apis gateway (Go port of mod_certwatch).
 	if err := certwatch.Init(); err != nil {
 		logger.Logger.Fatal("certwatch.Init failed", zap.Error(err))
 	}
 	defer certwatch.Close()
-
-	// Start the HTTP servers (Web and Monitoring).
-	server.Run()
-	defer server.Shutdown()
 
 	// Wait to be interrupted.
 	<-ctx.Done()
