@@ -4,11 +4,10 @@ go 1.26.5
 
 require (
 	github.com/goccy/go-json v0.10.6
-	github.com/jackc/pgx/v5 v5.10.0
+	github.com/jackc/pgx/v5 v5.11.0
 	github.com/prometheus/client_golang v1.24.1
 	github.com/spf13/viper v1.21.0
 	github.com/valyala/fasthttp v1.73.0
-	github.com/valyala/quicktemplate v1.8.0
 	go.uber.org/automaxprocs v1.6.0
 	go.uber.org/zap v1.28.0
 )
