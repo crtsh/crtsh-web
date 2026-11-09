@@ -3,7 +3,7 @@ module github.com/crtsh/crtsh-web
 go 1.26.5
 
 require (
-	github.com/goccy/go-json v0.10.6
+	github.com/goccy/go-json v0.12.0
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/prometheus/client_golang v1.25.0
 	github.com/spf13/viper v1.21.0
