@@ -7,11 +7,13 @@ import (
 
 	_ "go.uber.org/automaxprocs"
 
-	"go.uber.org/zap"
-
 	"github.com/crtsh/crtsh-web/certwatch"
 	"github.com/crtsh/crtsh-web/logger"
 	"github.com/crtsh/crtsh-web/server"
+
+	_ "github.com/valyala/quicktemplate"
+
+	"go.uber.org/zap"
 )
 
 func main() {
